@@ -9,6 +9,8 @@ public class UIManager : MonoBehaviour
     [SerializeField] private Image _livesImage;
     [SerializeField] private Sprite[] _liveSprites;
 
+    [SerializeField] private Text _ammoText;
+
     [SerializeField] private Slider _thrusterBar;
 
     [SerializeField] private Text _gameOverText;
@@ -19,6 +21,7 @@ public class UIManager : MonoBehaviour
     void Start()
     {
         _scoreText.text = "Score: " + 0;
+        _ammoText.text = "Shots: 15/50";
         _gameOverText.gameObject.SetActive(false);
         _restartText.gameObject.SetActive(false);
         _gameManager = GameObject.Find("GameManager").GetComponent<GameManager>();
@@ -43,6 +46,11 @@ public class UIManager : MonoBehaviour
         {
             GameOverSequence();
         }
+    }
+
+    public void UpdateAmmoCount(int bulletsLeft)
+    {
+        _ammoText.text = "Shots: " + bulletsLeft + "/50";
     }
 
     public void UpdateThrusterBar(float fuel)

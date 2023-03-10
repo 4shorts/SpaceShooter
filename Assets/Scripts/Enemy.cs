@@ -5,13 +5,21 @@ using UnityEngine;
 public class Enemy : MonoBehaviour
 {
     [SerializeField] private GameObject[] _laserPrefab;
-    [SerializeField] private float _speed = 4.0f;
-    private AudioSource _audioSource;
-    private Player _player;
-    private Animator _anim;
     private float _fireRate = 3f;
     private float _canFire = -1f;
 
+    [SerializeField] private int _enemyID = 0;
+    private float _distanceY;
+    [SerializeField] private float _spawnTime;
+    [SerializeField] private float _frequency;
+    private float _phase;
+
+    [SerializeField] private float _speed = 4.0f;
+
+    private AudioSource _audioSource;
+    private Player _player;
+    private Animator _anim;
+    
     void Start()
     {
         _player = GameObject.Find("Player").GetComponent<Player>();
@@ -56,7 +64,22 @@ public class Enemy : MonoBehaviour
 
     void CalculateMovement()
     {
-        transform.Translate(Vector3.down * _speed * Time.deltaTime);
+        switch(_enemyID)
+        {
+            case 0:
+                {
+                    _distanceY = 0;
+                    transform.Translate(Vector3.down * _speed * Time.deltaTime);
+                    break;
+                }
+            case 1:
+                {
+                    _distanceY = _speed * Mathf.Sin(_frequency * Time.time - _spawnTime + _phase) * Time.deltaTime;
+                    transform.Translate(Vector3.right * _distanceY);
+                    transform.Translate(Vector3.down * _speed * Time.deltaTime);
+                    break;
+                }
+        }
 
         if (transform.position.y < -5.5f)
         {
@@ -94,6 +117,22 @@ public class Enemy : MonoBehaviour
 
             _anim.SetTrigger("OnEnemyDeath");
             _speed = 0;
+            _canFire = 100;
+            _audioSource.Play();
+            Destroy(GetComponent<Collider2D>());
+            Destroy(this.gameObject, 2.8f);
+        }
+
+        if (other.tag == "TargetMissile")
+        {
+            Destroy(other.gameObject);
+            if (_player != null)
+            {
+                _player.AddScore(10);
+            }
+            _anim.SetTrigger("OnEnemyDeath");
+            _speed = 0;
+            _canFire = 100;
             _audioSource.Play();
             Destroy(GetComponent<Collider2D>());
             Destroy(this.gameObject, 2.8f);

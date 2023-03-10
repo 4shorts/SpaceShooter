@@ -1,6 +1,8 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.VFX;
+using static UnityEngine.GraphicsBuffer;
 
 public class Player : MonoBehaviour
 {
@@ -10,14 +12,19 @@ public class Player : MonoBehaviour
     [SerializeField] private float _maxSpeed = 10f;
     [SerializeField] private float _fuel = 100f;
 
+    [SerializeField] private int _shieldHits = 0;
     [SerializeField] private GameObject _shields;
     [SerializeField] private GameObject _rightEngine;
     [SerializeField] private GameObject _leftEngine;
+    public CameraShake cameraShake;
 
     [SerializeField] private GameObject _laserPrefab;
     [SerializeField] private GameObject _tripleShotPrefab;
+    [SerializeField] private GameObject _targetMissilePrefab;
     [SerializeField] private float _fireRate = 0.5f;
     private float _canFire = -1f;
+    [SerializeField] private int _ammoCount = 15;
+    [SerializeField] private AudioClip _noAmmo;
 
     [SerializeField] private int _score;
 
@@ -28,6 +35,7 @@ public class Player : MonoBehaviour
 
     private bool _isTripleShotActive;
     private bool _isShieldsActive;
+    private bool _isTargetMissileActive;
 
     [SerializeField] private AudioClip _laserSoundClip;
     private AudioSource _audioSource;
@@ -68,6 +76,11 @@ public class Player : MonoBehaviour
 
         if (Input.GetKeyDown(KeyCode.Space) && Time.time > _canFire)
         {
+            if (_ammoCount == 0)
+            {
+                AudioSource.PlayClipAtPoint(_noAmmo, transform.position);
+                return;
+            }
             FireWeapon();
         }
     }
@@ -120,11 +133,17 @@ public class Player : MonoBehaviour
 
     void FireWeapon()
     {
+        AmmoCount(-1);
         _canFire = Time.time + _fireRate;
 
         if (_isTripleShotActive == true)
         {
             Instantiate(_tripleShotPrefab, transform.position, Quaternion.identity);
+        }
+
+        else if (_isTargetMissileActive == true)
+        {
+            Instantiate(_targetMissilePrefab, transform.position, Quaternion.identity);
         }
 
         else
@@ -135,12 +154,43 @@ public class Player : MonoBehaviour
         _audioSource.Play();
     }
 
+    public void AmmoCount(int bullets)
+    {
+        _ammoCount += bullets;
+        _uiManager.UpdateAmmoCount(_ammoCount);
+    }
+
+    public void AmmoRefill()
+    {
+        _ammoCount += 15;
+        if (_ammoCount > 50)
+        {
+            _ammoCount = 50;
+        }
+        _uiManager.UpdateAmmoCount(_ammoCount);
+    }
+
     public void Damage()
     {
         if (_isShieldsActive == true)
         {
-            _isShieldsActive = false;
-            _shields.SetActive(false);
+            _shieldHits++;
+            switch (_shieldHits)
+            {
+                case 1:
+                    StartCoroutine(cameraShake.Shake(0.5f, 0.05f));
+                    _shields.GetComponent<SpriteRenderer>().material.color = Color.green; 
+                    break;
+                case 2:
+                    StartCoroutine(cameraShake.Shake(0.5f, 0.15f));
+                    _shields.GetComponent<SpriteRenderer>().material.color = Color.red;
+                    break;
+                case 3:
+                    StartCoroutine(cameraShake.Shake(0.5f, 0.25f));
+                    _isShieldsActive = false;
+                    _shields.SetActive(false);
+                    break;
+            }
             return;
         }
 
@@ -148,10 +198,12 @@ public class Player : MonoBehaviour
 
         if (_lives == 2)
         {
+            StartCoroutine(cameraShake.Shake(0.5f, 0.5f));
             _rightEngine.SetActive(true);
         }
         else if (_lives == 1)
         {
+            StartCoroutine(cameraShake.Shake(0.5f, 0.75f));
             _leftEngine.SetActive(true);
         }
 
@@ -162,6 +214,14 @@ public class Player : MonoBehaviour
             _spawnManager.OnPlayerDeath();
             Destroy(this.gameObject);
         }
+    }
+
+    public void Health()
+    {
+        _lives = 3;
+        _rightEngine.SetActive(false);
+        _leftEngine.SetActive(false);
+        _uiManager.UpdateLives(_lives);
     }
 
     public void TripleShotActive()
@@ -178,20 +238,27 @@ public class Player : MonoBehaviour
 
     public void SpeedBoostActive()
     {
-        _speed *= _speedMultiplier;
-        StartCoroutine(SpeedBoostPowerDownRoutine());
-    }
-
-    IEnumerator SpeedBoostPowerDownRoutine()
-    {
-        yield return new WaitForSeconds(5f);
-        _speed /= _speedMultiplier;
+        _fuel = 100f;
     }
 
     public void ShieldsActive()
     {
         _isShieldsActive = true;
         _shields.SetActive(true);
+        _shieldHits = 0;
+        _shields.GetComponent<SpriteRenderer>().material.color = Color.cyan;
+    }
+
+    public void TargetMissileActive()
+    {
+        _isTargetMissileActive = true;
+        StartCoroutine(TargetMissilePowerdownRoutine());
+    }
+
+    IEnumerator TargetMissilePowerdownRoutine()
+    {
+        yield return new WaitForSeconds(5.0f);
+        _isTargetMissileActive = false;
     }
 
     public void AddScore(int points)
